@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- 晒被气象指数分析与推荐系统 V1.0 纯网页版 -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F0E6">
+  <meta name="description" content="晒被气象指数：分数、等级、推荐晾晒时段。手机浏览器可直接使用。">
+  <title>晒被气象指数分析与推荐系统 V1.0</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="style.css?v=20260330b">
+</head>
+<body>
+  <header class="top">
+    <span class="brand-sun" aria-hidden="true">
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="sunCore" cx="36%" cy="32%" r="68%">
+            <stop offset="0%" stop-color="#FFF3C8"/>
+            <stop offset="55%" stop-color="#F5C14D"/>
+            <stop offset="100%" stop-color="#E89420"/>
+          </radialGradient>
+        </defs>
+        <g fill="#F0B13A">
+          <rect x="14.7" y="1.6" width="2.6" height="6.4" rx="1.3"/>
+          <rect x="14.7" y="24" width="2.6" height="6.4" rx="1.3"/>
+          <rect x="1.6" y="14.7" width="6.4" height="2.6" rx="1.3"/>
+          <rect x="24" y="14.7" width="6.4" height="2.6" rx="1.3"/>
+          <g transform="rotate(45 16 16)">
+            <rect x="14.7" y="1.6" width="2.6" height="6.4" rx="1.3"/>
+            <rect x="14.7" y="24" width="2.6" height="6.4" rx="1.3"/>
+            <rect x="1.6" y="14.7" width="6.4" height="2.6" rx="1.3"/>
+            <rect x="24" y="14.7" width="6.4" height="2.6" rx="1.3"/>
+          </g>
+        </g>
+        <circle cx="16" cy="16" r="8.1" fill="url(#sunCore)"/>
+      </svg>
+    </span>
+    <h1>晒被气象指数分析与推荐系统 <span>V1.0</span></h1>
+  </header>
+
+  <p class="web-note">网页版 · 各手机打开同一链接即可同时使用，无需注册登录。计算在本机浏览器完成。</p>
+
+  <section class="toolbar">
+    <label>地点
+      <select id="city"></select>
+    </label>
+    <label>纬度
+      <input id="lat" type="number" step="0.0001" min="-90" max="90" value="30.019">
+    </label>
+    <label>经度
+      <input id="lon" type="number" step="0.0001" min="-180" max="180" value="122.107">
+    </label>
+    <label>被子
+      <select id="bedding"></select>
+    </label>
+    <label>场地
+      <select id="site"></select>
+    </label>
+    <button type="button" id="btn-run">计算指数</button>
+    <a id="btn-export" class="linkbtn" href="#">导出 CSV</a>
+  </section>
+
+  <section id="radar-panel" class="radar-panel hidden">
+    <article class="radar-card">
+      <h2 class="block-title">雷达回波 <span class="now-tag">不参与指数</span> <span id="radar-place" class="now-tag"></span></h2>
+      <div id="radar-map" class="radar-map"></div>
+      <div class="radar-bar">
+        <button type="button" id="radar-prev">上一帧</button>
+        <button type="button" id="radar-play">播放</button>
+        <button type="button" id="radar-next">下一帧</button>
+        <span id="radar-time" class="muted">—</span>
+        <label class="lightning-toggle">
+          <input type="checkbox" id="lightning-on" checked>
+          实时闪电
+        </label>
+        <label class="lightning-scope">范围
+          <select id="lightning-region"></select>
+        </label>
+        <span id="lightning-status" class="muted">闪电：—</span>
+      </div>
+      <p id="radar-note" class="muted">雷达仅供判断附近是否有雨；闪电可选附近/全球/全国/各省。⚡ 来自 Blitzortung 社区网，站点稀疏处会漏测，不作业务预警。</p>
+    </article>
+  </section>
+
+  <main id="board" class="board hidden">
+    <p id="model-init" class="model-init"></p>
+    <section class="hero" id="hero">
+      <div class="score-wrap">
+        <p class="score-label">晒被子指数</p>
+        <p id="score" class="score">—</p>
+        <p id="grade" class="grade">—</p>
+      </div>
+      <div class="hero-grid">
+        <article>
+          <h2>推荐时段</h2>
+          <p id="period">—</p>
+          <p class="muted" id="window-note"></p>
+          <p class="muted" id="open-period"></p>
+        </article>
+        <article>
+          <h2>建议晾晒时长</h2>
+          <p id="duration">—</p>
+          <p class="muted" id="bedding-line"></p>
+        </article>
+        <article class="span2">
+          <h2>风险提示</h2>
+          <ul id="tips"></ul>
+        </article>
+      </div>
+    </section>
+
+    <p id="prohibit" class="ban hidden">禁止晾晒</p>
+
+    <section>
+      <h2 class="block-title">未来 7 天</h2>
+      <div id="days" class="days"></div>
+    </section>
+
+    <section class="split">
+      <div>
+        <h2 class="block-title">逐小时指数 <span id="day-title"></span></h2>
+        <div id="bars" class="bars"></div>
+      </div>
+      <div>
+        <h2 class="block-title">最佳时段因子</h2>
+        <div id="factors" class="factors"></div>
+        <table class="mini">
+          <thead>
+            <tr><th>等级</th><th>分数</th><th>含义</th></tr>
+          </thead>
+          <tbody>
+            <tr class="g-I"><td>Ⅰ 红</td><td>0—29</td><td>不建议晾晒</td></tr>
+            <tr class="g-II"><td>Ⅱ 橙</td><td>30—49</td><td>不太适宜，谨慎晾晒</td></tr>
+            <tr class="g-III"><td>Ⅲ 黄</td><td>50—74</td><td>基本适宜，注意时段</td></tr>
+            <tr class="g-IV"><td>Ⅳ 绿</td><td>75—100</td><td>适宜晾晒</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="block-title">逐小时评估 <span id="table-day-title"></span></h2>
+      <p class="table-hint">行色为该时次等级；描边行为推荐连续晾晒时段。</p>
+      <div class="hourly-scroll">
+        <table class="hourly" id="hourly-table">
+          <thead>
+            <tr>
+              <th>时间</th><th>指数</th><th>等级</th><th>气温℃</th><th>湿度%</th><th>VPD hPa</th>
+              <th>风速m/s</th><th>阵风m/s</th><th>雨量mm</th><th>低云量%</th><th>辐射W/m²</th><th>趋势</th><th>主要原因</th>
+            </tr>
+          </thead>
+          <tbody id="hourly-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <section>
+    <h2 class="block-title">最近计算</h2>
+    <div id="history" class="history">暂无记录（保存在本机浏览器）</div>
+  </section>
+
+  <p id="error" class="error hidden"></p>
+  <footer>预报经 Open-Meteo 取 ECMWF IFS；雷达 RainViewer；闪电 Blitzortung 社区网。指数在浏览器内计算，不上传账号。</footer>
+
+  <script src="vendor/leaflet.js"></script>
+  <script src="js/astro.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/forecast.js"></script>
+  <script src="js/radar.js"></script>
+  <script src="js/lightning.js?v=20260330b"></script>
+  <script src="app.js?v=20260330b"></script>
+</body>
+</html>
